@@ -21,6 +21,52 @@ data "aws_ami" "ubuntu" {
   }
 }
 
+# --- IAM Role for S3 PKI Backup ---
+
+resource "aws_iam_role" "openvpn" {
+  count = var.s3_backup_bucket != "" ? 1 : 0
+  name  = "${var.project_name}-${var.environment}-openvpn-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Action = "sts:AssumeRole"
+      Effect = "Allow"
+      Principal = {
+        Service = "ec2.amazonaws.com"
+      }
+    }]
+  })
+
+  tags = local.common_tags
+}
+
+resource "aws_iam_role_policy" "openvpn_s3" {
+  count = var.s3_backup_bucket != "" ? 1 : 0
+  name  = "${var.project_name}-${var.environment}-openvpn-s3-policy"
+  role  = aws_iam_role.openvpn[0].id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect = "Allow"
+      Action = [
+        "s3:PutObject",
+        "s3:GetObject",
+      ]
+      Resource = "arn:aws:s3:::${var.s3_backup_bucket}/openvpn-pki/*"
+    }]
+  })
+}
+
+resource "aws_iam_instance_profile" "openvpn" {
+  count = var.s3_backup_bucket != "" ? 1 : 0
+  name  = "${var.project_name}-${var.environment}-openvpn-profile"
+  role  = aws_iam_role.openvpn[0].name
+
+  tags = local.common_tags
+}
+
 resource "aws_instance" "openvpn" {
   ami                    = data.aws_ami.ubuntu.id
   instance_type          = var.instance_type
@@ -28,10 +74,13 @@ resource "aws_instance" "openvpn" {
   vpc_security_group_ids = [var.security_group_id]
   key_name               = var.key_name
   source_dest_check      = false
+  iam_instance_profile   = var.s3_backup_bucket != "" ? aws_iam_instance_profile.openvpn[0].name : null
 
   user_data = templatefile("${path.module}/userdata.sh", {
     vpn_client_cidr      = var.vpn_client_cidr
     private_subnet_cidrs = join(" ", var.private_subnet_cidrs)
+    s3_backup_bucket     = var.s3_backup_bucket
+    vpc_dns_ip           = var.vpc_dns_ip
   })
 
   root_block_device {

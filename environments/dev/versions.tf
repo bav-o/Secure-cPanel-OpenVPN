@@ -8,6 +8,12 @@ terraform {
     }
   }
 
+  # Configure via: terraform init \
+  #   -backend-config="bucket=<state-bucket>" \
+  #   -backend-config="key=vcode/dev/terraform.tfstate" \
+  #   -backend-config="region=us-east-1" \
+  #   -backend-config="dynamodb_table=<lock-table>" \
+  #   -backend-config="encrypt=true"
   backend "s3" {}
 }
 

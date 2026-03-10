@@ -59,6 +59,19 @@ run "bucket_public_access_blocked" {
   }
 }
 
+run "bucket_has_ssl_only_policy" {
+  command = plan
+
+  module {
+    source = "./modules/s3_backup"
+  }
+
+  assert {
+    condition     = aws_s3_bucket_policy.deny_non_ssl.bucket == aws_s3_bucket.backups.id
+    error_message = "Bucket policy should enforce SSL-only access"
+  }
+}
+
 run "bucket_lifecycle_has_transitions" {
   command = plan
 

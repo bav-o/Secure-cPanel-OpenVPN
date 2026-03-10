@@ -47,3 +47,18 @@ output "nat_gateway_public_ip" {
   description = "Public IP of the NAT Gateway"
   value       = aws_eip.nat.public_ip
 }
+
+output "private_route_table_id" {
+  description = "ID of the private route table"
+  value       = aws_route_table.private.id
+}
+
+output "flow_log_group_name" {
+  description = "Name of the VPC Flow Logs CloudWatch log group"
+  value       = aws_cloudwatch_log_group.flow_logs.name
+}
+
+output "s3_endpoint_id" {
+  description = "ID of the S3 VPC Gateway Endpoint"
+  value       = aws_vpc_endpoint.s3.id
+}

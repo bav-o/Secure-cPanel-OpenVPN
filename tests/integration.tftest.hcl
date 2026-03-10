@@ -1,12 +1,13 @@
 mock_provider "aws" {}
 
 # Integration test: verify the security model holds across modules.
-# cPanel SG only allows VPN CIDR, OpenVPN has source_dest_check=false.
+# Admin ports (WHM/cPanel/SSH) are VPN-only, web traffic (HTTP/HTTPS) is public.
 
 variables {
   # VPC
   vpc_cidr           = "10.0.0.0/16"
   availability_zones = ["us-east-1a", "us-east-1b"]
+  vpn_client_cidr    = "10.8.0.0/24"
   project_name       = "vcode"
   environment        = "test"
 }
@@ -34,7 +35,25 @@ run "vpc_foundation" {
   }
 }
 
-run "security_groups_vpn_only_access" {
+run "vpc_has_flow_logs_and_endpoint" {
+  command = plan
+
+  module {
+    source = "./modules/vpc"
+  }
+
+  assert {
+    condition     = aws_flow_log.this.traffic_type == "ALL"
+    error_message = "VPC must have flow logs enabled"
+  }
+
+  assert {
+    condition     = length(aws_vpc_endpoint.s3.route_table_ids) == 2
+    error_message = "S3 endpoint must be on both route tables"
+  }
+}
+
+run "security_groups_admin_vpn_only" {
   command = plan
 
   variables {
@@ -47,7 +66,7 @@ run "security_groups_vpn_only_access" {
     source = "./modules/security_groups"
   }
 
-  # Verify no cPanel ingress rule allows 0.0.0.0/0
+  # Admin ports must be VPN-only
   assert {
     condition     = aws_vpc_security_group_ingress_rule.cpanel_whm.cidr_ipv4 != "0.0.0.0/0"
     error_message = "cPanel WHM must NOT be open to the internet"
@@ -59,13 +78,19 @@ run "security_groups_vpn_only_access" {
   }
 
   assert {
-    condition     = aws_vpc_security_group_ingress_rule.cpanel_http.cidr_ipv4 != "0.0.0.0/0"
-    error_message = "cPanel HTTP must NOT be open to the internet"
+    condition     = aws_vpc_security_group_ingress_rule.cpanel_cpanel.cidr_ipv4 != "0.0.0.0/0"
+    error_message = "cPanel admin port must NOT be open to the internet"
+  }
+
+  # Web ports must be public for hosted sites
+  assert {
+    condition     = aws_vpc_security_group_ingress_rule.cpanel_http.cidr_ipv4 == "0.0.0.0/0"
+    error_message = "HTTP must be open to internet for hosted websites"
   }
 
   assert {
-    condition     = aws_vpc_security_group_ingress_rule.cpanel_https.cidr_ipv4 != "0.0.0.0/0"
-    error_message = "cPanel HTTPS must NOT be open to the internet"
+    condition     = aws_vpc_security_group_ingress_rule.cpanel_https.cidr_ipv4 == "0.0.0.0/0"
+    error_message = "HTTPS must be open to internet for hosted websites"
   }
 
   # Verify OpenVPN SSH is restricted
@@ -90,5 +115,10 @@ run "s3_backup_security" {
   assert {
     condition     = aws_s3_bucket_versioning.backups.versioning_configuration[0].status == "Enabled"
     error_message = "S3 backups must have versioning enabled"
+  }
+
+  assert {
+    condition     = aws_s3_bucket_policy.deny_non_ssl.bucket == aws_s3_bucket.backups.id
+    error_message = "S3 bucket must enforce SSL-only access"
   }
 }

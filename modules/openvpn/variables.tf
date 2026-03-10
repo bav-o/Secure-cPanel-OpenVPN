@@ -46,3 +46,15 @@ variable "tags" {
   type        = map(string)
   default     = {}
 }
+
+variable "s3_backup_bucket" {
+  description = "S3 bucket name for PKI backup"
+  type        = string
+  default     = ""
+}
+
+variable "vpc_dns_ip" {
+  description = "VPC DNS resolver IP (base of VPC CIDR + 2)"
+  type        = string
+  default     = "10.0.0.2"
+}

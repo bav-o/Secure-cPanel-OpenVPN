@@ -3,7 +3,7 @@ set -euo pipefail
 
 # cPanel requires a clean, freshly installed OS
 # Ensure hostname is set properly
-hostnamectl set-hostname server.example.com
+hostnamectl set-hostname ${hostname}
 
 # Update system packages
 dnf update -y

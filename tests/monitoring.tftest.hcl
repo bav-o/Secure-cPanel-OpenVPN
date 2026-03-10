@@ -5,6 +5,9 @@ variables {
     openvpn = "i-mock111"
     cpanel  = "i-mock222"
   }
+  disk_monitor_instance_ids = {
+    cpanel = "i-mock222"
+  }
   alert_emails  = ["test@example.com"]
   cpu_threshold = 80
   project_name  = "vcode"
@@ -70,5 +73,46 @@ run "monitoring_status_check_alarms" {
   assert {
     condition     = aws_cloudwatch_metric_alarm.status_check["cpanel"].threshold == 0
     error_message = "Status check threshold should be 0"
+  }
+}
+
+run "monitoring_disk_alarms" {
+  command = plan
+
+  module {
+    source = "./modules/monitoring"
+  }
+
+  assert {
+    condition     = length(aws_cloudwatch_metric_alarm.disk) == 1
+    error_message = "Should create disk alarm for cPanel"
+  }
+
+  assert {
+    condition     = aws_cloudwatch_metric_alarm.disk["cpanel"].threshold == 85
+    error_message = "Disk threshold should be 85%"
+  }
+
+  assert {
+    condition     = aws_cloudwatch_metric_alarm.disk["cpanel"].namespace == "CWAgent"
+    error_message = "Disk alarm should use CWAgent namespace"
+  }
+}
+
+run "monitoring_memory_alarms" {
+  command = plan
+
+  module {
+    source = "./modules/monitoring"
+  }
+
+  assert {
+    condition     = length(aws_cloudwatch_metric_alarm.memory) == 1
+    error_message = "Should create memory alarm for cPanel"
+  }
+
+  assert {
+    condition     = aws_cloudwatch_metric_alarm.memory["cpanel"].threshold == 85
+    error_message = "Memory threshold should be 85%"
   }
 }

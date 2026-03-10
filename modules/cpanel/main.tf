@@ -86,11 +86,15 @@ resource "aws_instance" "cpanel" {
   key_name               = var.key_name
   iam_instance_profile   = aws_iam_instance_profile.cpanel.name
 
-  user_data = file("${path.module}/userdata.sh")
+  user_data = templatefile("${path.module}/userdata.sh", {
+    hostname = var.hostname
+  })
 
   root_block_device {
     volume_size = var.root_volume_size
     volume_type = "gp3"
+    iops        = var.root_volume_iops
+    throughput  = var.root_volume_throughput
     encrypted   = true
   }
 

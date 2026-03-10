@@ -28,8 +28,13 @@ variable "availability_zones" {
 }
 
 variable "admin_cidr" {
-  description = "Admin IP CIDR for SSH access to VPN server"
+  description = "Admin IP CIDR for SSH access to VPN server (must not be 0.0.0.0/0)"
   type        = string
+
+  validation {
+    condition     = var.admin_cidr != "0.0.0.0/0"
+    error_message = "admin_cidr must not be 0.0.0.0/0 — set it to your specific admin IP (e.g., 203.0.113.10/32)."
+  }
 }
 
 variable "vpn_client_cidr" {

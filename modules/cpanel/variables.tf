@@ -25,6 +25,23 @@ variable "root_volume_size" {
   default     = 100
 }
 
+variable "root_volume_iops" {
+  description = "Provisioned IOPS for gp3 root volume"
+  type        = number
+  default     = 3000
+}
+
+variable "root_volume_throughput" {
+  description = "Provisioned throughput (MiB/s) for gp3 root volume"
+  type        = number
+  default     = 125
+}
+
+variable "hostname" {
+  description = "Hostname for the cPanel server (used for cPanel license)"
+  type        = string
+}
+
 variable "s3_backup_bucket_arn" {
   description = "ARN of the S3 bucket for cPanel backups"
   type        = string

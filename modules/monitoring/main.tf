@@ -68,3 +68,53 @@ resource "aws_cloudwatch_metric_alarm" "status_check" {
 
   tags = local.common_tags
 }
+
+# --- Disk Utilization Alarms (requires CloudWatch Agent) ---
+
+resource "aws_cloudwatch_metric_alarm" "disk" {
+  for_each = var.disk_monitor_instance_ids
+
+  alarm_name          = "${var.project_name}-${var.environment}-${each.key}-disk-high"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = 2
+  metric_name         = "disk_used_percent"
+  namespace           = "CWAgent"
+  period              = 300
+  statistic           = "Average"
+  threshold           = var.disk_threshold
+  alarm_description   = "Disk usage >${var.disk_threshold}% on ${each.key}"
+  alarm_actions       = [aws_sns_topic.alerts.arn]
+  ok_actions          = [aws_sns_topic.alerts.arn]
+
+  dimensions = {
+    InstanceId = each.value
+    path       = "/"
+    fstype     = "xfs"
+  }
+
+  tags = local.common_tags
+}
+
+# --- Memory Utilization Alarms (requires CloudWatch Agent) ---
+
+resource "aws_cloudwatch_metric_alarm" "memory" {
+  for_each = var.disk_monitor_instance_ids
+
+  alarm_name          = "${var.project_name}-${var.environment}-${each.key}-memory-high"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = 2
+  metric_name         = "mem_used_percent"
+  namespace           = "CWAgent"
+  period              = 300
+  statistic           = "Average"
+  threshold           = var.memory_threshold
+  alarm_description   = "Memory usage >${var.memory_threshold}% on ${each.key}"
+  alarm_actions       = [aws_sns_topic.alerts.arn]
+  ok_actions          = [aws_sns_topic.alerts.arn]
+
+  dimensions = {
+    InstanceId = each.value
+  }
+
+  tags = local.common_tags
+}

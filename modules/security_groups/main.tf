@@ -85,22 +85,22 @@ resource "aws_vpc_security_group_ingress_rule" "cpanel_cpanel" {
 
 resource "aws_vpc_security_group_ingress_rule" "cpanel_http" {
   security_group_id = aws_security_group.cpanel.id
-  description       = "HTTP from VPN clients only"
+  description       = "HTTP from internet for hosted websites"
   from_port         = 80
   to_port           = 80
   ip_protocol       = "tcp"
-  cidr_ipv4         = var.vpn_client_cidr
+  cidr_ipv4         = "0.0.0.0/0"
 
   tags = merge(local.common_tags, { Name = "cpanel-http" })
 }
 
 resource "aws_vpc_security_group_ingress_rule" "cpanel_https" {
   security_group_id = aws_security_group.cpanel.id
-  description       = "HTTPS from VPN clients only"
+  description       = "HTTPS from internet for hosted websites"
   from_port         = 443
   to_port           = 443
   ip_protocol       = "tcp"
-  cidr_ipv4         = var.vpn_client_cidr
+  cidr_ipv4         = "0.0.0.0/0"
 
   tags = merge(local.common_tags, { Name = "cpanel-https" })
 }

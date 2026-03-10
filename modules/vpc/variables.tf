@@ -36,3 +36,9 @@ variable "tags" {
   type        = map(string)
   default     = {}
 }
+
+variable "vpn_client_cidr" {
+  description = "CIDR block for VPN clients (used in private NACL rules)"
+  type        = string
+  default     = "10.8.0.0/24"
+}

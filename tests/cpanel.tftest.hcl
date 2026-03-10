@@ -1,14 +1,17 @@
 mock_provider "aws" {}
 
 variables {
-  subnet_id            = "subnet-mock456"
-  security_group_id    = "sg-mock456"
-  instance_type        = "c5.xlarge"
-  key_name             = "test-key"
-  root_volume_size     = 100
-  s3_backup_bucket_arn = "arn:aws:s3:::vcode-test-cpanel-backups"
-  project_name         = "vcode"
-  environment          = "test"
+  subnet_id              = "subnet-mock456"
+  security_group_id      = "sg-mock456"
+  instance_type          = "c5.xlarge"
+  key_name               = "test-key"
+  root_volume_size       = 100
+  root_volume_iops       = 3000
+  root_volume_throughput = 125
+  hostname               = "cpanel.test.example.com"
+  s3_backup_bucket_arn   = "arn:aws:s3:::vcode-test-cpanel-backups"
+  project_name           = "vcode"
+  environment            = "test"
 }
 
 run "cpanel_instance_type" {
@@ -39,6 +42,16 @@ run "cpanel_root_volume_100gb" {
   assert {
     condition     = aws_instance.cpanel.root_block_device[0].encrypted == true
     error_message = "Root volume should be encrypted"
+  }
+
+  assert {
+    condition     = aws_instance.cpanel.root_block_device[0].iops == 3000
+    error_message = "Root volume should have 3000 IOPS"
+  }
+
+  assert {
+    condition     = aws_instance.cpanel.root_block_device[0].throughput == 125
+    error_message = "Root volume should have 125 MiB/s throughput"
   }
 }
 

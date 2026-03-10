@@ -6,6 +6,8 @@ variables {
   vpn_client_cidr   = "10.8.0.0/24"
   instance_type     = "t3.small"
   key_name          = "test-key"
+  s3_backup_bucket  = "vcode-test-cpanel-backups"
+  vpc_dns_ip        = "10.0.0.2"
   project_name      = "vcode"
   environment       = "test"
 }

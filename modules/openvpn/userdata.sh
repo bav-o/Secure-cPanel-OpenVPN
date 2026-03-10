@@ -7,8 +7,8 @@ export DEBIAN_FRONTEND=noninteractive
 apt-get update -y
 apt-get upgrade -y
 
-# Install OpenVPN and Easy-RSA
-apt-get install -y openvpn easy-rsa iptables-persistent
+# Install OpenVPN, Easy-RSA, and AWS CLI
+apt-get install -y openvpn easy-rsa iptables-persistent awscli
 
 # Set up Easy-RSA
 make-cadir /etc/openvpn/easy-rsa
@@ -33,8 +33,21 @@ openvpn --genkey secret /etc/openvpn/ta.key
 ./easyrsa --batch gen-req client1 nopass
 ./easyrsa --batch sign-req client client1
 
-# Create server config
-cat > /etc/openvpn/server.conf <<'SERVERCONF'
+# Backup PKI to S3
+if [ -n "${s3_backup_bucket}" ]; then
+  tar czf /tmp/openvpn-pki-backup.tar.gz \
+    /etc/openvpn/easy-rsa/pki/ \
+    /etc/openvpn/ta.key
+  aws s3 cp /tmp/openvpn-pki-backup.tar.gz \
+    "s3://${s3_backup_bucket}/openvpn-pki/pki-backup-$(date +%Y%m%d-%H%M%S).tar.gz"
+  rm -f /tmp/openvpn-pki-backup.tar.gz
+fi
+
+# Create server config (split tunnel — only route private subnets through VPN)
+VPN_NETWORK=$(python3 -c "import ipaddress; n=ipaddress.IPv4Network('${vpn_client_cidr}', strict=False); print(n.network_address)")
+VPN_MASK=$(python3 -c "import ipaddress; n=ipaddress.IPv4Network('${vpn_client_cidr}', strict=False); print(n.netmask)")
+
+cat > /etc/openvpn/server.conf <<SERVERCONF
 port 1194
 proto udp
 dev tun
@@ -43,13 +56,11 @@ cert /etc/openvpn/easy-rsa/pki/issued/server.crt
 key /etc/openvpn/easy-rsa/pki/private/server.key
 dh /etc/openvpn/easy-rsa/pki/dh.pem
 tls-auth /etc/openvpn/ta.key 0
-server ${vpn_client_cidr}
+server $VPN_NETWORK $VPN_MASK
 cipher AES-256-GCM
 auth SHA384
 tls-version-min 1.2
-push "redirect-gateway def1 bypass-dhcp"
-push "dhcp-option DNS 1.1.1.1"
-push "dhcp-option DNS 8.8.8.8"
+push "dhcp-option DNS ${vpc_dns_ip}"
 keepalive 10 120
 persist-key
 persist-tun
@@ -60,7 +71,7 @@ user nobody
 group nogroup
 SERVERCONF
 
-# Push routes for private subnets
+# Push routes for private subnets (split tunnel)
 for cidr in ${private_subnet_cidrs}; do
   IFS='/' read -r network prefix <<< "$cidr"
   # Convert prefix to netmask

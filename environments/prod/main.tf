@@ -5,6 +5,7 @@ module "vpc" {
 
   vpc_cidr           = var.vpc_cidr
   availability_zones = var.availability_zones
+  vpn_client_cidr    = var.vpn_client_cidr
   project_name       = var.project_name
   environment        = var.environment
 }
@@ -41,6 +42,8 @@ module "openvpn" {
   instance_type        = var.openvpn_instance_type
   key_name             = var.key_name
   private_subnet_cidrs = module.vpc.private_subnet_cidr_list
+  s3_backup_bucket     = module.s3_backup.bucket_name
+  vpc_dns_ip           = cidrhost(var.vpc_cidr, 2)
   project_name         = var.project_name
   environment          = var.environment
 
@@ -58,10 +61,19 @@ module "cpanel" {
   key_name             = var.key_name
   root_volume_size     = var.cpanel_root_volume_size
   s3_backup_bucket_arn = module.s3_backup.bucket_arn
+  hostname             = "cpanel.${var.domain_name}"
   project_name         = var.project_name
   environment          = var.environment
 
   depends_on = [module.vpc, module.security_groups, module.s3_backup]
+}
+
+# --- VPN Route (private subnet → OpenVPN for return traffic) ---
+
+resource "aws_route" "vpn_return" {
+  route_table_id         = module.vpc.private_route_table_id
+  destination_cidr_block = var.vpn_client_cidr
+  network_interface_id   = module.openvpn.network_interface_id
 }
 
 # --- Route 53 ---
@@ -82,6 +94,9 @@ module "monitoring" {
   instance_ids = {
     openvpn = module.openvpn.instance_id
     cpanel  = module.cpanel.instance_id
+  }
+  disk_monitor_instance_ids = {
+    cpanel = module.cpanel.instance_id
   }
   alert_emails = var.alert_emails
   project_name = var.project_name
